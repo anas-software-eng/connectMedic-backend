@@ -44,7 +44,11 @@ export const sendMessage = async (req, res) => {
     let imageUrl;
     if (image) {
       // Upload base64 image to cloudinary
-      const uploadResponse = await cloudinary.uploader.upload(image);
+      const uploadResponse = await cloudinary.uploader.upload(image, {
+        // Uncomment the line below and create an unsigned upload preset in Cloudinary
+        // if your API key doesn't have upload permissions
+        // upload_preset: "connectmedic-unsigned",
+      });
       imageUrl = uploadResponse.secure_url;
     }
 
@@ -64,7 +68,21 @@ export const sendMessage = async (req, res) => {
 
     res.status(201).json(newMessage);
   } catch (error) {
-    console.log("Error in sendMessage controller: ", error.message);
+    // Cloudinary rejects with a plain object, not an Error, so `${error}` prints
+    // [object Object]. Most Cloudinary failures carry the real reason in
+    // error.error.message. The exception is UnexpectedResponse (e.g. the 403 for
+    // an API key lacking the "create" action), where the SDK drops the response
+    // body and only the generic "unexpected status code" survives.
+    const cloudinaryDetail = error?.error?.message;
+    console.log(
+      "Error in sendMessage controller ---",
+      cloudinaryDetail || error?.message || error
+    );
+    if (error?.http_code) {
+      return res.status(502).json({
+        error: `Image upload failed: ${cloudinaryDetail || error.message}`,
+      });
+    }
     res.status(500).json({ error: "Internal server error" });
   }
 };

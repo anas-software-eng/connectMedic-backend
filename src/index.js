@@ -6,10 +6,11 @@ import cors from "cors";
 import path from "path";
 
 import { connectDB } from "./lib/db.js";
-
+import { createAdmin } from "./controllers/auth.controller.js";
 import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
 import { app, server } from "./lib/socket.js";
+import cloudinary from "./lib/cloudinary.js";
 
 dotenv.config();
 
@@ -38,7 +39,39 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-server.listen(PORT, () => {
-  console.log("server is running on PORT:" + PORT);
-  connectDB();
-});
+const startServer = async () => {
+  try {
+    // Validate Cloudinary configuration on startup
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      throw new Error("Missing Cloudinary environment variables. Please check your .env file.");
+    }
+
+    // Test Cloudinary connection
+    try {
+      await cloudinary.api.ping();
+      console.log("✓ Cloudinary connection verified");
+    } catch (cloudinaryError) {
+      const cloudinaryDetail = cloudinaryError?.error?.message || cloudinaryError.message;
+      console.error("✗ Cloudinary connection failed:", cloudinaryDetail);
+      console.error("Please verify your Cloudinary credentials in .env file.");
+      console.error("Common issues:");
+      console.error("  - Invalid API key/secret");
+      console.error("  - API key lacks 'create' permission");
+      console.error("  - Account restrictions");
+      process.exit(1);
+    }
+
+    await connectDB();
+
+    await createAdmin();
+
+    server.listen(PORT, () => {
+      console.log("Server is running on PORT: " + PORT);
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error.message);
+    process.exit(1);
+  }
+};
+
+startServer();
