@@ -1,7 +1,7 @@
 import User from "../models/user.model.js";
 import Message from "../models/message.model.js";
 
-import cloudinary from "../lib/cloudinary.js";
+import cloudinary, { isCloudinaryConfigured } from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
 
 export const getUsersForSidebar = async (req, res) => {
@@ -43,6 +43,11 @@ export const sendMessage = async (req, res) => {
 
     let imageUrl;
     if (image) {
+      if (!isCloudinaryConfigured) {
+        return res
+          .status(400)
+          .json({ error: "Image uploads are not configured on this server" });
+      }
       // Upload base64 image to cloudinary
       const uploadResponse = await cloudinary.uploader.upload(image, {
         // Uncomment the line below and create an unsigned upload preset in Cloudinary

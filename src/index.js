@@ -4,69 +4,64 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 
 import path from "path";
+import { fileURLToPath } from "url";
 
 import { connectDB } from "./lib/db.js";
 import { createAdmin } from "./controllers/auth.controller.js";
 import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
+import doctorRoutes from "./routes/doctor.route.js";
+import appointmentRoutes from "./routes/appointment.route.js";
+import adminRoutes from "./routes/admin.route.js";
+import dashboardRoutes from "./routes/dashboard.route.js";
 import { app, server } from "./lib/socket.js";
-import cloudinary from "./lib/cloudinary.js";
 
 dotenv.config();
 
 const PORT = process.env.PORT || 7500;
-const __dirname = path.resolve();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173").split(",");
 
-app.use(cors({
-  origin: 'http://localhost:5173', 
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  credentials: true
-})); 
+app.use(
+  cors({
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+  })
+);
 
 // Increase payload limit and handle JSON/URL-encoded bodies
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(cookieParser());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/doctors", doctorRoutes);
+app.use("/api/appointments", appointmentRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+
+// API 404 for anything under /api that no route matched.
+app.use("/api", (req, res) => res.status(404).json({ message: "Route not found" }));
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.join(__dirname, "../frontend/dist")));
+  // Backend lives in backend/src; the built site lives in ../frontend/dist.
+  const frontendDist = path.join(__dirname, "../../frontend/dist");
+  app.use(express.static(frontendDist));
 
   app.get("*", (req, res) => {
-    res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
+    res.sendFile(path.join(frontendDist, "index.html"));
   });
 }
 
 const startServer = async () => {
   try {
-    // Validate Cloudinary configuration on startup
-    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-      throw new Error("Missing Cloudinary environment variables. Please check your .env file.");
-    }
-
-    // Test Cloudinary connection
-    try {
-      await cloudinary.api.ping();
-      console.log("✓ Cloudinary connection verified");
-    } catch (cloudinaryError) {
-      const cloudinaryDetail = cloudinaryError?.error?.message || cloudinaryError.message;
-      console.error("✗ Cloudinary connection failed:", cloudinaryDetail);
-      console.error("Please verify your Cloudinary credentials in .env file.");
-      console.error("Common issues:");
-      console.error("  - Invalid API key/secret");
-      console.error("  - API key lacks 'create' permission");
-      console.error("  - Account restrictions");
-      process.exit(1);
-    }
-
     await connectDB();
-
     await createAdmin();
 
     server.listen(PORT, () => {
-      console.log("Server is running on PORT: " + PORT);
+      console.log(`Server is running on PORT: ${PORT}`);
     });
   } catch (error) {
     console.error("Failed to start server:", error.message);

@@ -15,4 +15,13 @@ if (process.env.CLOUDINARY_URL) {
   });
 }
 
+// Image uploads are optional — booking and messaging work without them.
+export const isCloudinaryConfigured =
+  Boolean(process.env.CLOUDINARY_URL) ||
+  Boolean(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET
+  );
+
 export default cloudinary;

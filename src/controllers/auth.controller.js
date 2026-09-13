@@ -1,7 +1,7 @@
-import { generateToken } from "../lib/utils.js";
+import { generateToken, withDoctorProfile } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
-import cloudinary from "../lib/cloudinary.js";
+import cloudinary, { isCloudinaryConfigured } from "../lib/cloudinary.js";
 
 import dotenv from "dotenv";
 dotenv.config();
@@ -73,13 +73,7 @@ export const signup = async (req, res) => {
       generateToken(newUser._id, res);
       await newUser.save();
 
-      res.status(201).json({
-        _id: newUser._id,
-        fullName: newUser.fullName,
-        email: newUser.email,
-        profilePic: newUser.profilePic,
-        role: newUser.role,
-      });
+      res.status(201).json(await withDoctorProfile(newUser));
     } else {
       res.status(400).json({ message: "Invalid user data" });
     }
@@ -105,13 +99,7 @@ export const login = async (req, res) => {
 
     generateToken(user._id, res);
 
-    res.status(200).json({
-      _id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-      profilePic: user.profilePic,
-      role: user.role,
-    });
+    res.status(200).json(await withDoctorProfile(user));
   } catch (error) {
     console.log("Error in login controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
@@ -136,6 +124,11 @@ export const updateProfile = async (req, res) => {
     if (!profilePic) {
       return res.status(400).json({ message: "Profile pic is required" });
     }
+    if (!isCloudinaryConfigured) {
+      return res
+        .status(400)
+        .json({ message: "Image uploads are not configured on this server" });
+    }
 
     const uploadResponse = await cloudinary.uploader.upload(profilePic, {
       // Uncomment the line below and create an unsigned upload preset in Cloudinary
@@ -148,8 +141,7 @@ export const updateProfile = async (req, res) => {
       { new: true }
     );
 
-    res.status(200).json(updatedUser);
-    console.log(`user  ${updatedUser}` );
+    res.status(200).json(await withDoctorProfile(updatedUser));
   } catch (error) {
     // Cloudinary rejects with a plain object, not an Error, so `${error}` prints
     // [object Object]. Most Cloudinary failures carry the real reason in
@@ -172,9 +164,9 @@ export const updateProfile = async (req, res) => {
   }
 };
 
-export const checkAuth = (req, res) => {
+export const checkAuth = async (req, res) => {
   try {
-    res.status(200).json(req.user);
+    res.status(200).json(await withDoctorProfile(req.user));
   } catch (error) {
     console.log("Error in checkAuth controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
