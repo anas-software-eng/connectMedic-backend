@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 import { connectDB } from "./lib/db.js";
 import { createAdmin } from "./controllers/auth.controller.js";
 import authRoutes from "./routes/auth.route.js";
+import docRoutes from "./routes/doctorProfile.js";
 import messageRoutes from "./routes/message.route.js";
 import doctorRoutes from "./routes/doctor.route.js";
 import appointmentRoutes from "./routes/appointment.route.js";
@@ -36,6 +37,7 @@ app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(cookieParser());
 
 app.use("/api/auth", authRoutes);
+app.use("/api", docRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/appointments", appointmentRoutes);

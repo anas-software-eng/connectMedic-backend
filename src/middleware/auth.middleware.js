@@ -29,17 +29,8 @@ export const protectRoute = async (req, res, next) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
-
-export const adminOnly = (req, res, next) => {
-  if (req.user?.role !== "admin") {
-    return res.status(403).json({ message: "Admin access required" });
-  }
-  next();
-};
-
-export const doctorOnly = (req, res, next) => {
-  if (req.user?.role !== "doctor") {
-    return res.status(403).json({ message: "Doctor access required" });
-  }
-  next();
+export const permission = async (_req, _res, next) => {
+ 
+    next();
+ 
 };
