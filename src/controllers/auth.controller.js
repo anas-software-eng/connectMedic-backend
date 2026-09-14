@@ -1,4 +1,4 @@
-import { generateToken, withDoctorProfile } from "../lib/utils.js";
+import { generateToken, withDoctorProfile, clearAuthCookie } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import cloudinary, { isCloudinaryConfigured } from "../lib/cloudinary.js";
@@ -83,7 +83,7 @@ export const login = asyncHandler(async (req, res) => {
 });
 
 export const logout = (req, res) => {
-  res.cookie("jwt", "", { maxAge: 0 });
+  clearAuthCookie(res);
   res.status(200).json({ message: "Logged out successfully" });
 };
 

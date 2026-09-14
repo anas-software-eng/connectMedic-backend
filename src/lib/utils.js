@@ -4,20 +4,29 @@ import Doctor from "../models/Doctors.js";
 
 dotenv.config();
 
+// Frontend and backend live on different domains in production
+// (Vercel/Render), so the cookie must be SameSite=None to be sent
+// cross-site at all — browsers silently drop Strict/Lax cookies on
+// cross-origin requests. None requires Secure, which prod already has.
+// Clearing the cookie must use the same attributes it was set with, or
+// some browsers won't recognize it as the same cookie to overwrite.
+const authCookieOptions = () => {
+  const isProd = process.env.NODE_ENV === "production";
+  return { httpOnly: true, sameSite: isProd ? "none" : "strict", secure: isProd };
+};
+
 export const generateToken = (userId, res) => {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: "7d",
   });
 
-  res.cookie("jwt", token, {
-    maxAge: 7 * 24 * 60 * 60 * 1000, // MS
-    httpOnly: true, // prevent XSS attacks cross-site scripting attacks
-    sameSite: "strict", // CSRF attacks cross-site request forgery attacks
-    // Only send over HTTPS in production; local HTTP dev must not set Secure.
-    secure: process.env.NODE_ENV === "production",
-  });
+  res.cookie("jwt", token, { ...authCookieOptions(), maxAge: 7 * 24 * 60 * 60 * 1000 });
 
   return token;
+};
+
+export const clearAuthCookie = (res) => {
+  res.cookie("jwt", "", { ...authCookieOptions(), maxAge: 0 });
 };
 
 // Doctors keep two records: the auth `User` and a `Doctor` profile.

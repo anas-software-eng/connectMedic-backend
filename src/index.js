@@ -5,9 +5,6 @@ import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 
-import path from "path";
-import { fileURLToPath } from "url";
-
 import { connectDB } from "./lib/db.js";
 import { createAdmin } from "./controllers/auth.controller.js";
 import authRoutes from "./routes/auth.route.js";
@@ -26,12 +23,11 @@ import { app, server } from "./lib/socket.js";
 dotenv.config();
 
 const PORT = process.env.PORT || 7500;
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173").split(",");
 
 // disable cross-origin-resource-policy: the API serves images (Cloudinary
-// URLs are returned as JSON, not proxied) and, in production, the built SPA
-// itself — the default policy would block that static bundle.
+// URLs are returned as JSON, not proxied) and the frontend is a separate
+// deployment (Vercel) — the default policy would block cross-origin fetches.
 app.use(helmet({ crossOriginResourcePolicy: false }));
 
 app.use(
@@ -73,15 +69,10 @@ app.use("/api/assistant", assistantRoutes);
 app.use("/api", notFound);
 app.use("/api", errorHandler);
 
-if (process.env.NODE_ENV === "production") {
-  // Backend lives in backend/src; the built site lives in ../frontend/dist.
-  const frontendDist = path.join(__dirname, "../../frontend/dist");
-  app.use(express.static(frontendDist));
-
-  app.get("*", (req, res) => {
-    res.sendFile(path.join(frontendDist, "index.html"));
-  });
-}
+// The frontend is a separate deployment (Vercel) — this backend only ever
+// serves the API and Socket.io, so a friendly root response is enough for
+// health checks and anyone who visits the bare host directly.
+app.get("/", (req, res) => res.json({ status: "ok", service: "connectMedic-backend" }));
 
 const startServer = async () => {
   try {

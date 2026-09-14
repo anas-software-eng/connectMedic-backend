@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
+import { clearAuthCookie } from "../lib/utils.js";
 
 export const protectRoute = async (req, res, next) => {
   try {
@@ -22,7 +23,7 @@ export const protectRoute = async (req, res, next) => {
       return res.status(401).json({ message: "User not found" });
     }
     if (user.isBanned) {
-      res.cookie("jwt", "", { maxAge: 0 });
+      clearAuthCookie(res);
       return res.status(403).json({ message: "Your account has been suspended" });
     }
 
