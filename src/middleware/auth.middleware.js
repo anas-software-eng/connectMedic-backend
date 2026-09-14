@@ -21,6 +21,10 @@ export const protectRoute = async (req, res, next) => {
     if (!user) {
       return res.status(401).json({ message: "User not found" });
     }
+    if (user.isBanned) {
+      res.cookie("jwt", "", { maxAge: 0 });
+      return res.status(403).json({ message: "Your account has been suspended" });
+    }
 
     req.user = user;
     next();
@@ -29,8 +33,16 @@ export const protectRoute = async (req, res, next) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
-export const permission = async (_req, _res, next) => {
- 
-    next();
- 
+export const doctorOnly = (req, res, next) => {
+  if (req.user?.role !== "doctor") {
+    return res.status(403).json({ message: "Forbidden - Doctors only" });
+  }
+  next();
+};
+
+export const adminOnly = (req, res, next) => {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ message: "Forbidden - Admins only" });
+  }
+  next();
 };

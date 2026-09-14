@@ -25,6 +25,16 @@ const userSchema = new mongoose.Schema(
       enum: ["patient", "doctor", "admin"],
       default: "patient",
     },
+    // Touched on socket disconnect (once no tab is left open) so the chat UI
+    // can show a real "last seen" instead of a canned status string.
+    lastSeenAt: {
+      type: Date,
+      default: null,
+    },
+    isBanned: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

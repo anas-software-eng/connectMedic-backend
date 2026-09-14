@@ -29,6 +29,22 @@ const appointmentSchema = new mongoose.Schema(
       enum: ["pending", "confirmed", "completed", "cancelled"],
       default: "pending",
     },
+    // Completion needs both sides to agree the visit happened — null means
+    // "hasn't answered yet", so it's distinct from an explicit "no".
+    doctorConfirmedDone: {
+      type: Boolean,
+      default: null,
+    },
+    patientConfirmedDone: {
+      type: Boolean,
+      default: null,
+    },
+    // Set once the pre-visit reminder notification has gone out, so the
+    // reminder sweep never nags the patient twice for the same visit.
+    reminderSentAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

@@ -2,6 +2,8 @@ import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -9,12 +11,16 @@ import { fileURLToPath } from "url";
 import { connectDB } from "./lib/db.js";
 import { createAdmin } from "./controllers/auth.controller.js";
 import authRoutes from "./routes/auth.route.js";
-import docRoutes from "./routes/doctorProfile.js";
 import messageRoutes from "./routes/message.route.js";
 import doctorRoutes from "./routes/doctor.route.js";
 import appointmentRoutes from "./routes/appointment.route.js";
 import adminRoutes from "./routes/admin.route.js";
 import dashboardRoutes from "./routes/dashboard.route.js";
+import reviewRoutes from "./routes/review.route.js";
+import notificationRoutes from "./routes/notification.route.js";
+import assistantRoutes from "./routes/assistant.route.js";
+import { notFound, errorHandler } from "./middleware/error.middleware.js";
+import { startAppointmentReminders } from "./lib/reminders.js";
 import { app, server } from "./lib/socket.js";
 
 dotenv.config();
@@ -22,6 +28,11 @@ dotenv.config();
 const PORT = process.env.PORT || 7500;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const allowedOrigins = (process.env.CLIENT_URL || "http://localhost:5173").split(",");
+
+// disable cross-origin-resource-policy: the API serves images (Cloudinary
+// URLs are returned as JSON, not proxied) and, in production, the built SPA
+// itself — the default policy would block that static bundle.
+app.use(helmet({ crossOriginResourcePolicy: false }));
 
 app.use(
   cors({
@@ -31,21 +42,36 @@ app.use(
   })
 );
 
+// Blanket ceiling on top of the tighter per-route limiters (auth, AI
+// assistant) — keeps a single client from hammering any endpoint.
+app.use(
+  "/api",
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+  })
+);
+
 // Increase payload limit and handle JSON/URL-encoded bodies
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(cookieParser());
 
 app.use("/api/auth", authRoutes);
-app.use("/api", docRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/assistant", assistantRoutes);
 
 // API 404 for anything under /api that no route matched.
-app.use("/api", (req, res) => res.status(404).json({ message: "Route not found" }));
+app.use("/api", notFound);
+app.use("/api", errorHandler);
 
 if (process.env.NODE_ENV === "production") {
   // Backend lives in backend/src; the built site lives in ../frontend/dist.
@@ -64,6 +90,7 @@ const startServer = async () => {
 
     server.listen(PORT, () => {
       console.log(`Server is running on PORT: ${PORT}`);
+      startAppointmentReminders();
     });
   } catch (error) {
     console.error("Failed to start server:", error.message);
