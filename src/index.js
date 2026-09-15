@@ -23,7 +23,9 @@ import { app, server } from "./lib/socket.js";
 dotenv.config();
 
 const PORT = process.env.PORT || 7500;
-const allowedOrigins = (process.NODE_ENV === "Production" ? process.env.CLIENT_URL : "http://localhost:5173").split(",");
+const allowedOrigins = (process.env.NODE_ENV === "production" ? process.env.CLIENT_URL : "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim());
 
 // disable cross-origin-resource-policy: the API serves images (Cloudinary
 // URLs are returned as JSON, not proxied) and the frontend is a separate
